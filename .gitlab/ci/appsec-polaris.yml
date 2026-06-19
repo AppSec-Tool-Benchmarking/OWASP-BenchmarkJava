@@ -1,0 +1,32 @@
+# Benchmark scan — manual trigger only. No auto-runs, no MR decoration, no pipeline failures.
+# OWASP-BenchmarkJava: build with Maven before Polaris scan.
+
+appsec-polaris:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  when: manual
+  allow_failure: true
+  variables:
+    POLARIS_SERVER_URL: $CI_POLARIS_SERVER_URL
+    POLARIS_ACCESS_TOKEN: $CI_POLARIS_ACCESS_TOKEN
+  before_script:
+    - mvn package -DskipTests -q
+  script:
+    - mkdir -p results/polaris
+    - curl -fsSLo polaris "$POLARIS_SERVER_URL/api/tools/polaris_cli-linux64.zip" || true
+    - |
+      if [ -f polaris ]; then
+        chmod +x polaris
+      else
+        curl -fsSLo polaris.zip "$POLARIS_SERVER_URL/api/tools/polaris_cli-linux64.zip"
+        unzip -q polaris.zip
+        chmod +x polaris
+      fi
+    - ./polaris analyze
+        --project "OWASP-BenchmarkJava-benchmark"
+        --output-file results/polaris/polaris-results.json || true
+  artifacts:
+    when: always
+    paths:
+      - results/polaris/
+    expire_in: 30 days

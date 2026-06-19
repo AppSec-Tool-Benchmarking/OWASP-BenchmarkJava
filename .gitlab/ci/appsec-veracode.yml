@@ -1,0 +1,28 @@
+# Benchmark scan — manual trigger only. No auto-runs, no MR decoration, no pipeline failures.
+# OWASP-BenchmarkJava: build with Maven before scanning.
+
+appsec-veracode:
+  stage: test
+  image: maven:3.9-eclipse-temurin-17
+  when: manual
+  allow_failure: true
+  variables:
+    VERACODE_API_ID: $CI_VERACODE_API_ID
+    VERACODE_API_KEY: $CI_VERACODE_API_KEY
+  before_script:
+    - mvn package -DskipTests -q
+  script:
+    - mkdir -p results/veracode
+    - curl -sLO https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip
+    - unzip -q pipeline-scan-LATEST.zip pipeline-scan.jar
+    - java -jar pipeline-scan.jar
+        --veracode_api_id "$VERACODE_API_ID"
+        --veracode_api_key "$VERACODE_API_KEY"
+        --file target/benchmark.jar
+        --fail_on_severity ""
+        --json_output_file results/veracode/veracode-results.json || true
+  artifacts:
+    when: always
+    paths:
+      - results/veracode/
+    expire_in: 30 days

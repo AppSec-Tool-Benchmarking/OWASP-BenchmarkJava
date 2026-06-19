@@ -1,0 +1,47 @@
+# Benchmark scan — manual trigger only. No auto-runs, no PR decoration, no pipeline failures.
+# Part of the Guidepoint AppSec Tool Benchmarking program (Phase 1).
+
+name: "AppSec Benchmark — Veracode [OWASP-BenchmarkJava]"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  veracode:
+    name: Veracode Pipeline Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        run: mvn package -DskipTests
+
+      - name: Create results directory
+        run: mkdir -p results/veracode
+
+      - name: Run Veracode Pipeline Scan
+        uses: veracode/Veracode-GitHub-Actions/pipeline-scan@v0.1.0
+        continue-on-error: true
+        with:
+          vid: ${{ secrets.VERACODE_API_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY }}
+          file: "target/"
+          fail_on_severity: ""
+          json_output_file: "results/veracode/veracode-results.json"
+
+      - name: Upload Veracode results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: veracode-results
+          path: results/veracode/
